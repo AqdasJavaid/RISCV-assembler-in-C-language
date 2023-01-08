@@ -1,0 +1,2246 @@
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <ctype.h>
+
+/****************************************
+
+  Name : Aqdas Javaid
+  
+******************************************/
+
+typedef struct
+{
+    int address;
+    char label[50];
+
+} symtable;
+
+symtable symbolTable[255];
+
+long converter(char *imm_val_str, int inst_line)
+{
+
+    long imm_val_int;
+    char *endptr; // end pointer for strtol
+    char temp_str[33];
+
+    if (imm_val_str[0] != '-') // for +ive
+    {
+
+        if ((imm_val_str[0] >= 48 && imm_val_str[0] <= 57) && (imm_val_str[1] != 'x' && imm_val_str[1] != 'b')) // decimal str
+        {
+            imm_val_int = strtol(imm_val_str, &endptr, 10);
+        }
+
+        else if (imm_val_str[0] == '0' && imm_val_str[1] == 'x') // hex str
+        {
+            int i = 0;
+            for (i; i < strlen(imm_val_str); i++) // remove 0x from expression
+                temp_str[i] = imm_val_str[i + 2];
+
+            temp_str[i + 1] = '\0';
+
+            imm_val_int = strtol(temp_str, &endptr, 16);
+        }
+
+        else if (imm_val_str[0] == '0' && imm_val_str[1] == 'b') // bin str
+        {
+            int i = 0;
+            for (i; i < strlen(imm_val_str); i++) // remove 0b from expression
+                temp_str[i] = imm_val_str[i + 2];
+
+            temp_str[i + 1] = '\0';
+
+            imm_val_int = strtol(temp_str, &endptr, 2);
+        }
+        else // label
+        {
+            int i = 0;
+            int k = 0;
+            strcpy(temp_str, imm_val_str);
+            int size = strlen(temp_str);
+
+            while (i != 256)
+            {
+
+                if (!strcmp(temp_str, symbolTable[i].label))
+                {
+                    imm_val_int = symbolTable[i].address; // if +ive label
+                    break;
+                }
+
+                if (i == 255)
+                {
+                    printf("\n\nError 7: Label not found [ln:%d]\n\n", inst_line); // invalid opcode
+                    exit(0);
+                }
+
+                i++;
+            }
+        }
+    }
+    else //-ive val
+    {
+        if ((imm_val_str[1] >= 48 && imm_val_str[1] <= 57) && (imm_val_str[2] != 'x' && imm_val_str[2] != 'b')) // decimal str
+        {
+            imm_val_int = strtol(imm_val_str, &endptr, 10);
+        }
+        else if (imm_val_str[1] == '0' && imm_val_str[2] == 'x') // hex str
+        {
+
+            temp_str[0] = '-';
+            int i = 1;
+            for (i; i < strlen(imm_val_str); i++) // remove 0x from expression
+                temp_str[i] = imm_val_str[i + 2];
+
+            temp_str[i + 1] = '\0';
+
+            imm_val_int = strtol(temp_str, &endptr, 16);
+        }
+        else if (imm_val_str[1] == '0' && imm_val_str[2] == 'b') // bin str
+        {
+            temp_str[0] = '-';
+            int i = 1;
+            for (i; i < strlen(imm_val_str); i++) // remove 0x from expression
+                temp_str[i] = imm_val_str[i + 2];
+
+            temp_str[i + 1] = '\0';
+
+            imm_val_int = strtol(temp_str, &endptr, 2);
+        }
+        else // label
+        {
+
+            int size = strlen(imm_val_str);
+            temp_str[0] = '-';
+            for (int k = 1; k < size; k++)
+                temp_str[k] = imm_val_str[k + 1];
+
+            temp_str[size] = '\0';
+
+            int i = 0;
+            while (i != 256)
+            {
+
+                if (!strcmp(temp_str, symbolTable[i].label))
+                {
+                    imm_val_int = -symbolTable[i].address; // if +ive label
+                    break;
+                }
+
+                if (i == 255)
+                {
+                    printf("\n\nError 7: Label not found [ln:%d]\n\n", inst_line); // invalid opcode
+                    exit(0);
+                }
+
+                i++;
+            }
+        }
+    }
+
+    return imm_val_int;
+}
+
+void decToBin(int num, char *bin_str, int size_str)
+
+{
+
+    int arr[12] = {0};
+
+    if (num >= 0) // for +ive numbers
+    {
+        int i = 11;
+        while (num != 0)
+        {
+
+            arr[i] = num % 2;
+            num = num / 2;
+            i--;
+        }
+    }
+
+    else // for-ive numbers
+    {
+        num = num * -1; // make the value +ive
+        num = num - 1;  // invert(num-1) gives the 2's complement ofnum
+        int i = 11;
+
+        while (num != 0)
+        {
+            arr[i] = num % 2;
+            num = num / 2;
+            i--;
+        }
+
+        for (int i = 0; i < 12; i++) // invert bits
+        {
+            arr[i] = !arr[i];
+        }
+    }
+
+    // converting character array into string
+    int j = 0;
+
+    for (int i = 0; i < 12; i++)
+    {
+        j = j + sprintf(&bin_str[j], "%d", arr[i]);
+    }
+}
+
+void decToBin_20bits(int num, char *bin_str, int size_str)
+
+{
+
+    int arr[20] = {0};
+
+    if (num >= 0) // for +ive numbers
+    {
+        int i = 19;
+        while (num != 0)
+        {
+
+            arr[i] = num % 2;
+            num = num / 2;
+            i--;
+        }
+    }
+
+    else // for-ive numbers
+    {
+        num = num * -1; // make the value +ive
+        num = num - 1;  // invert(num-1) gives the 2's complement ofnum
+        int i = 19;
+
+        while (num != 0)
+        {
+            arr[i] = num % 2;
+            num = num / 2;
+            i--;
+        }
+
+        for (int i = 0; i < 20; i++) // invert bits
+        {
+            arr[i] = !arr[i];
+        }
+    }
+
+    // converting character array into string
+    int j = 0;
+
+    for (int i = 0; i < 20; i++)
+    {
+        j = j + sprintf(&bin_str[j], "%d", arr[i]);
+    }
+}
+
+void decToBin_32bits(int num, char *bin_str)
+
+{
+
+    int arr[32] = {0};
+
+    if (num >= 0) // for +ive numbers
+    {
+        int i = 31;
+        while (num != 0)
+        {
+
+            arr[i] = num % 2;
+            num = num / 2;
+            i--;
+        }
+    }
+
+    else // for-ive numbers
+    {
+        num = num * -1; // make the value +ive
+        num = num - 1;  // invert(num-1) gives the 2's complement ofnum
+        int i = 31;
+
+        while (num != 0)
+        {
+            arr[i] = num % 2;
+            num = num / 2;
+            i--;
+        }
+
+        for (int i = 0; i < 32; i++) // invert bits
+        {
+            arr[i] = !arr[i];
+        }
+    }
+
+    // converting int array into string
+    int j = 0;
+
+    for (int i = 0; i < 32; i++)
+    {
+        j = j + sprintf(&bin_str[j], "%d", arr[i]);
+    }
+}
+
+char instruction(char *instArr, int inst_linee)
+{
+
+    if ((!strcmp(instArr, "add")) || (!strcmp(instArr, "sub")) || (!strcmp(instArr, "xor")) || (!strcmp(instArr, "or")) || (!strcmp(instArr, "and")) || (!strcmp(instArr, "sll")) || (!strcmp(instArr, "srl")) || (!strcmp(instArr, "sra")) || (!strcmp(instArr, "slt")) || (!strcmp(instArr, "sltu")))
+
+    {
+        return 'R';
+    }
+
+    else if ((!strcmp(instArr, "nop")) || (!strcmp(instArr, "addi")) || (!strcmp(instArr, "sltiu")) || (!strcmp(instArr, "xori")) || (!strcmp(instArr, "ori")) || (!strcmp(instArr, "andi")) || (!strcmp(instArr, "slli")) || (!strcmp(instArr, "srli")) || (!strcmp(instArr, "srai")) || (!strcmp(instArr, "slti")) || (!strcmp(instArr, "lb")) || (!strcmp(instArr, "lh")) || (!strcmp(instArr, "lw")) || (!strcmp(instArr, "lbu")) || (!strcmp(instArr, "lhu")) || (!strcmp(instArr, "jalr")) || (!strcmp(instArr, "ecall")) || (!strcmp(instArr, "ebreak")))
+
+    {
+        return 'I';
+    }
+
+    else if ((!strcmp(instArr, "sb")) || (!strcmp(instArr, "sh")) || (!strcmp(instArr, "sw")))
+    {
+        return 'S';
+    }
+
+    else if ((!strcmp(instArr, "beq")) || (!strcmp(instArr, "bne")) || (!strcmp(instArr, "blt")) || (!strcmp(instArr, "bge")) || (!strcmp(instArr, "bltu")) || (!strcmp(instArr, "bgeu")))
+
+    {
+        return 'B';
+    }
+
+    else if ((!strcmp(instArr, "lui")) || (!strcmp(instArr, "auipc")))
+
+    {
+        return 'U';
+    }
+
+    else if ((!strcmp(instArr, "jal")))
+
+    {
+        return 'J';
+    }
+
+    else
+    {
+        printf("\n\nError 2: Invalid 0pcode [ln:%d]\n\n", inst_linee); // invalid opcode
+        exit(0);
+    }
+}
+
+void regist(char *reg, int inst_line)
+{
+
+    // map register binary
+
+    if ((!strcmp(reg, "x0")) || (!strcmp(reg, "zero")))
+        strcpy(reg, "00000");
+
+    else if ((!strcmp(reg, "x1")) || (!strcmp(reg, "ra")))
+        strcpy(reg, "00001");
+
+    else if ((!strcmp(reg, "x2")) || (!strcmp(reg, "sp")))
+        strcpy(reg, "00010");
+
+    else if ((!strcmp(reg, "x3")) || (!strcmp(reg, "gp")))
+        strcpy(reg, "00011");
+
+    else if ((!strcmp(reg, "x4")) || (!strcmp(reg, "tp")))
+        strcpy(reg, "00100");
+
+    else if ((!strcmp(reg, "x5")) || (!strcmp(reg, "t0")))
+        strcpy(reg, "00101");
+
+    else if ((!strcmp(reg, "x6")) || (!strcmp(reg, "t1")))
+        strcpy(reg, "00110");
+
+    else if ((!strcmp(reg, "x7")) || (!strcmp(reg, "t2")))
+        strcpy(reg, "00111");
+
+    else if ((!strcmp(reg, "x8")) || (!strcmp(reg, "s0")) || (!strcmp(reg, "fp")))
+        strcpy(reg, "01000");
+
+    else if ((!strcmp(reg, "x9")) || (!strcmp(reg, "s1")))
+        strcpy(reg, "01001");
+
+    else if ((!strcmp(reg, "x10")) || (!strcmp(reg, "a0")))
+        strcpy(reg, "01010");
+
+    else if ((!strcmp(reg, "x11")) || (!strcmp(reg, "a1")))
+        strcpy(reg, "01011");
+
+    else if ((!strcmp(reg, "x12")) || (!strcmp(reg, "a2")))
+        strcpy(reg, "01100");
+
+    else if ((!strcmp(reg, "x13")) || (!strcmp(reg, "a3")))
+        strcpy(reg, "01101");
+
+    else if ((!strcmp(reg, "x14")) || (!strcmp(reg, "a4")))
+        strcpy(reg, "01110");
+
+    else if ((!strcmp(reg, "x15")) || (!strcmp(reg, "a5")))
+        strcpy(reg, "01111");
+
+    else if ((!strcmp(reg, "x16")) || (!strcmp(reg, "a6")))
+        strcpy(reg, "10000");
+
+    else if ((!strcmp(reg, "x17")) || (!strcmp(reg, "a7")))
+        strcpy(reg, "10001");
+
+    else if ((!strcmp(reg, "x18")) || (!strcmp(reg, "s2")))
+        strcpy(reg, "10010");
+
+    else if ((!strcmp(reg, "x19")) || (!strcmp(reg, "s3")))
+        strcpy(reg, "10011");
+
+    else if ((!strcmp(reg, "x20")) || (!strcmp(reg, "s4")))
+        strcpy(reg, "10100");
+
+    else if ((!strcmp(reg, "x21")) || (!strcmp(reg, "s5")))
+        strcpy(reg, "10101");
+
+    else if ((!strcmp(reg, "x22")) || (!strcmp(reg, "s6")))
+        strcpy(reg, "10110");
+
+    else if ((!strcmp(reg, "x23")) || (!strcmp(reg, "s7")))
+        strcpy(reg, "10111");
+
+    else if ((!strcmp(reg, "x24")) || (!strcmp(reg, "s8")))
+        strcpy(reg, "11000");
+
+    else if ((!strcmp(reg, "x25")) || (!strcmp(reg, "s9")))
+        strcpy(reg, "11001");
+
+    else if ((!strcmp(reg, "x26")) || (!strcmp(reg, "s10")))
+        strcpy(reg, "11010");
+
+    else if ((!strcmp(reg, "x27")) || (!strcmp(reg, "s11")))
+        strcpy(reg, "11011");
+
+    else if ((!strcmp(reg, "x28")) || (!strcmp(reg, "t3")))
+        strcpy(reg, "11100");
+
+    else if ((!strcmp(reg, "x29")) || (!strcmp(reg, "t4")))
+        strcpy(reg, "11101");
+
+    else if ((!strcmp(reg, "x30")) || (!strcmp(reg, "t5")))
+        strcpy(reg, "11110");
+
+    else if ((!strcmp(reg, "x31")) || (!strcmp(reg, "t6")))
+        strcpy(reg, "11111");
+
+    else
+    {
+        printf("\n\nError 4 : invalid reg name [ln:%d]\n\n", inst_line);
+        exit(0);
+    }
+}
+
+void Rtype(char *inst, char *rd_ptr, char *rs1_ptr, char *rs2_ptr, int inst_line, long *result)
+{
+
+    int inst_code;
+
+    //  integer value to R type
+
+    // assigning the integer value to each instruction to distinguish them. It will be utilize in switch switch
+
+    if (!strcmp(inst, "add"))
+        inst_code = 1;
+    else if (!strcmp(inst, "sub"))
+        inst_code = 2;
+    else if (!strcmp(inst, "xor"))
+        inst_code = 3;
+    else if (!strcmp(inst, "or"))
+        inst_code = 4;
+    else if (!strcmp(inst, "and"))
+        inst_code = 5;
+    else if (!strcmp(inst, "sll"))
+        inst_code = 6;
+    else if (!strcmp(inst, "srl"))
+        inst_code = 7;
+    else if (!strcmp(inst, "sra"))
+        inst_code = 8;
+    else if (!strcmp(inst, "slt"))
+        inst_code = 9;
+    else if (!strcmp(inst, "sltu"))
+        inst_code = 10;
+    else
+    {
+        printf("\n\nError 2: Invalid 0pcode [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+    }
+
+    // printf("\n%d", inst_code);
+
+    char func3[4];
+    char func7[33];
+    char opcode[8];
+    char rd[6];
+    char rs1[6];
+    char rs2[6];
+
+    // organize and arrange the 32 bit instruction
+
+    switch (inst_code)
+    {
+
+    case 1: // add
+
+        strcpy(func3, "000");
+        strcpy(func7, "0000000");
+
+        break;
+
+    case 2: // sub
+
+        strcpy(func3, "000");
+        strcpy(func7, "0100000");
+
+        break;
+    case 3: // XOR
+
+        strcpy(func3, "100");
+        strcpy(func7, "0000000");
+
+        break;
+
+    case 4: // OR
+
+        strcpy(func3, "110");
+        strcpy(func7, "0000000");
+
+        break;
+
+    case 5: // AND
+
+        strcpy(func3, "111");
+        strcpy(func7, "0000000");
+
+        break;
+
+    case 6: // SHIFT LEFT LOGICAL
+
+        strcpy(func3, "001");
+        strcpy(func7, "0000000");
+
+        break;
+
+    case 7: // SHIFT RIGHT LOGICAL
+
+        strcpy(func3, "101");
+        strcpy(func7, "0000000");
+
+        break;
+
+    case 8: // SHIFT RIGHT ARITHMETIC
+
+        strcpy(func3, "101");
+        strcpy(func7, "0100000");
+
+        break;
+
+    case 9: // SET LESS THAN
+
+        strcpy(func3, "010");
+        strcpy(func7, "0000000");
+
+        break;
+
+    case 10: // SET LESS THAN (U)
+
+        strcpy(func3, "011");
+        strcpy(func7, "0000000");
+
+        break;
+
+    default:
+        printf("\n\nError 2: Invalid 0pcode [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+        break;
+    }
+    strcpy(opcode, "0110011"); // opcode
+
+    strcpy(rd, rd_ptr);
+    regist(rd, inst_line); // destination reg
+
+    if (!strcmp(rd, "00000"))
+    {
+        printf("\n\nError 11: Invalid operation [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+    }
+
+    strcpy(rs1, rs1_ptr);
+    regist(rs1, inst_line); // source 1 reg
+
+    strcpy(rs2, rs2_ptr);
+    regist(rs2, inst_line); // source 2 reg
+
+    // concat all registers to complete 32 bit instruction
+    strcat(func7, rs2);
+    strcat(func7, rs1);
+    strcat(func7, func3);
+    strcat(func7, rd);
+    strcat(func7, opcode);
+
+    /// converting string into integer
+    // strtol converts the initial part of the string in str to a long int value according to the given base
+    // first arg str, 2nd arg return the characters if any(after integers), third is base
+
+    char *endptr; // end pointer
+    long strToint;
+    strToint = strtol(func7, &endptr, 2);
+
+    *result = strToint; // send result back to main to write it in file
+}
+
+void Itype(char *inst, char *rd_ptr, char *rs1_ptr, char *imm_ptr, int inst_line, int PC, long *result)
+
+{
+    int inst_code;
+
+    // integer value to I type inst
+
+    // assigning the integer value to each instruction to distinguish them. It will be utilize in switch switch
+
+    if (!strcmp(inst, "addi"))
+        inst_code = 1;
+    else if (!strcmp(inst, "xori"))
+        inst_code = 2;
+    else if (!strcmp(inst, "ori"))
+        inst_code = 3;
+    else if (!strcmp(inst, "andi"))
+        inst_code = 4;
+    else if (!strcmp(inst, "slli"))
+        inst_code = 5;
+    else if (!strcmp(inst, "srli"))
+        inst_code = 6;
+    else if (!strcmp(inst, "srai"))
+        inst_code = 7;
+    else if (!strcmp(inst, "slti"))
+        inst_code = 8;
+    else if (!strcmp(inst, "sltiu"))
+        inst_code = 9;
+    else if (!strcmp(inst, "lb"))
+        inst_code = 10;
+    else if (!strcmp(inst, "lh"))
+        inst_code = 11;
+    else if (!strcmp(inst, "lw"))
+        inst_code = 12;
+    else if (!strcmp(inst, "lbu"))
+        inst_code = 13;
+    else if (!strcmp(inst, "lhu"))
+        inst_code = 14;
+    else if (!strcmp(inst, "jalr"))
+        inst_code = 15;
+    else if (!strcmp(inst, "ecall"))
+        inst_code = 16;
+    else if (!strcmp(inst, "ebreak"))
+        inst_code = 17;
+    else if (!strcmp(inst, "nop"))
+        inst_code = 18;
+    else
+    {
+        printf("\n\nError 3: Invalid 0pcode [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+    }
+
+    char func3[4];
+    char opcode[8];
+    char rd[6];
+    char rs1[6];
+    char rs2[6];
+
+    int inst_flag;
+
+    // organize and arrange the 32 bit instruction
+    switch (inst_code)
+    {
+
+    case 1: // addi
+
+        strcpy(func3, "000");
+        inst_flag = 0;
+
+        break;
+
+    case 2: // xori
+
+        strcpy(func3, "100");
+
+        inst_flag = 0;
+
+        break;
+
+    case 3: // ori
+
+        strcpy(func3, "110");
+
+        inst_flag = 0;
+
+        break;
+
+    case 4: // andi
+
+        strcpy(func3, "111");
+
+        inst_flag = 0;
+
+        break;
+
+    case 5: // slli
+
+        strcpy(func3, "001");
+
+        inst_flag = 1;
+        break;
+
+    case 6: // srli
+
+        strcpy(func3, "101");
+        inst_flag = 1;
+        break;
+
+    case 7: // srai
+
+        strcpy(func3, "101");
+        inst_flag = 1;
+        break;
+
+    case 8: // slti
+
+        strcpy(func3, "010");
+        inst_flag = 0;
+        break;
+
+    case 9: // sltiu
+
+        strcpy(func3, "011");
+        inst_flag = 0;
+
+        break;
+
+    case 10: // lb
+
+        strcpy(func3, "000");
+        inst_flag = 2;
+
+        break;
+    case 11: // lh
+
+        strcpy(func3, "001");
+        inst_flag = 2;
+
+        break;
+    case 12: // lw
+
+        strcpy(func3, "010");
+        inst_flag = 2;
+
+        break;
+
+    case 13: // lbu
+
+        strcpy(func3, "100");
+        inst_flag = 2;
+
+        break;
+
+    case 14: // lhu
+
+        strcpy(func3, "101");
+        inst_flag = 2;
+
+        break;
+
+    case 15: // jalr
+
+        strcpy(func3, "000");
+        inst_flag = 3;
+
+        break;
+
+    case 16: // ecall
+
+        strcpy(func3, "000");
+        inst_flag = 4;
+
+        break;
+
+    case 17: // ebreak
+
+        strcpy(func3, "000");
+        inst_flag = 4;
+
+        break;
+
+    case 18: // nop
+
+        strcpy(func3, "000");
+        inst_flag = 5;
+
+        break;
+
+    default:
+        printf("\n\nError 2: Invalid 0pcode [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+    }
+
+    /// converting string into integer
+
+    char *endptr; // end pointer
+    long imm_val;
+    char bin_str[13] = {0};
+    int size_str = 12;
+    char concatArr[33] = {0};
+    char *endptr1; // end pointer
+    long strToint;
+
+    char imm_11_5[8];
+    char imm_4_0[6];
+    char offset[6];
+
+    if (inst_flag == 0 || inst_flag == 1) // for flag 0,1
+    {
+        // converting string into decimal
+        imm_val = converter(imm_ptr, inst_line);
+    }
+
+    if (inst_flag == 0)
+    {
+        if (imm_val >= -2048 && imm_val <= 2047)
+        {
+
+            decToBin(imm_val, bin_str, size_str);
+
+            strcpy(opcode, "0010011"); // opcode
+
+            strcpy(rd, rd_ptr);
+            regist(rd, inst_line); // destination reg
+
+            if (!strcmp(rd, "00000"))
+            {
+                printf("\n\nError 11: Invalid operation [ln:%d]\n\n", inst_line);
+                exit(0);
+            }
+
+            strcpy(rs1, rs1_ptr);
+            regist(rs1, inst_line); // source 1 reg
+
+            // concat all registers to complete 32 bit instruction
+            strcpy(concatArr, bin_str);
+            strcat(concatArr, rs1);
+            strcat(concatArr, func3);
+            strcat(concatArr, rd);
+            strcat(concatArr, opcode);
+        }
+        else
+        {
+            printf("\n\nError 3: Invalid constant [ln:%d]\n\n", inst_line); // invalid opcode
+            exit(0);
+        }
+    }
+
+    else if (inst_flag == 1)
+    {
+
+        if (imm_val >= 0 && imm_val < 32)
+        {
+
+            decToBin(imm_val, bin_str, size_str);
+
+            strcpy(opcode, "0010011"); // opcode
+
+            strcpy(rd, rd_ptr);
+            regist(rd, inst_line); // destination reg
+
+            if (!strcmp(rd, "00000"))
+            {
+                printf("\n\nError 11: Invalid operation [ln:%d]\n\n", inst_line);
+                exit(0);
+            }
+
+            strcpy(rs1, rs1_ptr);
+            regist(rs1, inst_line); // source 1 reg
+
+            if (inst_code == 7) // shamt[5:10] = 0x20 for srai
+            {
+                bin_str[1] = '1';
+            }
+
+            // concat all registers to complete 32 bit instruction
+            strcpy(concatArr, bin_str);
+            strcat(concatArr, rs1);
+            strcat(concatArr, func3);
+            strcat(concatArr, rd);
+            strcat(concatArr, opcode);
+        }
+
+        else
+
+        {
+            printf("\n\nError 3: Invalid constant (-1 <range< 32) [ln:%d]\n\n", inst_line); // invalid opcode
+            exit(0);
+        }
+    }
+
+    else if (inst_flag == 2)
+    {
+
+        strcpy(opcode, "0000011"); // opcode
+
+        strcpy(rd, rd_ptr); // source 2 reg i.e dest reg
+        regist(rd, inst_line);
+
+        if (!strcmp(rd, "00000"))
+        {
+            printf("\n\nError 11: Invalid operation [ln:%d]\n\n", inst_line);
+            exit(0);
+        }
+
+        strcpy(rs1, imm_ptr);
+        regist(rs1, inst_line); // source 1 reg
+
+        /// converting string into integer
+        imm_val = converter(rs1_ptr, inst_line);
+        char temp_rs1[10];
+
+        if (imm_val >= -2048 && imm_val <= 2047)
+        {
+
+            decToBin(imm_val, bin_str, size_str);
+
+            for (int i = 0; i < 7; i++)
+            {
+                imm_11_5[i] = bin_str[i];
+                if (i < 5)
+                    imm_4_0[i] = bin_str[7 + i];
+            }
+
+            imm_11_5[7] = '\0';
+            imm_4_0[5] = '\0';
+
+            // concat all registers to complete 32 bit instruction
+            strcpy(concatArr, bin_str);
+            strcat(concatArr, rs1);
+            strcat(concatArr, func3);
+            strcat(concatArr, rd);
+            strcat(concatArr, opcode);
+        }
+    }
+
+    else if (inst_flag == 3)
+
+    {
+
+        imm_val = converter(imm_ptr, inst_line);
+
+        if (imm_val >= -2048 && imm_val <= 2047)
+        {
+
+            decToBin(imm_val, bin_str, size_str);
+
+            strcpy(opcode, "1100111"); // opcode
+
+            strcpy(rd, rd_ptr);
+            regist(rd, inst_line); // destination reg
+
+            strcpy(rs1, rs1_ptr);
+            regist(rs1, inst_line); // source 1 reg
+
+            // concat all registers to complete 32 bit instruction
+            strcpy(concatArr, bin_str);
+            strcat(concatArr, rs1);
+            strcat(concatArr, func3);
+            strcat(concatArr, rd);
+            strcat(concatArr, opcode);
+        }
+        else
+        {
+            printf("\n\nError 3: Invalid constant [ln:%d]\n\n", inst_line); // invalid opcode
+            exit(0);
+        }
+    }
+    else if (inst_flag == 4) // ebreak // ecall
+    {
+
+        strcpy(opcode, "1110011"); // opcode
+        strcpy(rd, "00000");
+        strcpy(rs1, "00000");
+
+        // concat all registers to complete 32 bit instruction
+        strcpy(concatArr, "000000000001");
+        strcat(concatArr, rs1);
+        strcat(concatArr, func3);
+        strcat(concatArr, rd);
+        strcat(concatArr, opcode);
+    }
+
+    else if (inst_flag == 5) //nope
+        {
+            strcpy(concatArr, "00000000000000000000000000010011");
+
+        }
+    else
+    {
+
+        printf("\n\nError 2: Invalid 0pcode [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+    }
+
+    /// converting string into integer
+
+    strToint = strtol(concatArr, &endptr1, 2);
+    *result = strToint; // send result back to main to write it in file
+}
+
+void Stype(char *inst, char *rs2_ptr, char *offset_ptr, char *rs1_ptr, int inst_line, long *result)
+
+{
+    int inst_code;
+
+    //  integer value to I type inst
+
+    // assigning the integer value to each instruction to distinguish them. It will be utilize in switch switch
+
+    if (!strcmp(inst, "sb"))
+        inst_code = 1;
+    else if (!strcmp(inst, "sh"))
+        inst_code = 2;
+    else if (!strcmp(inst, "sw"))
+        inst_code = 3;
+
+    else
+    {
+        printf("\n\nError 2: Invalid 0pcode [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+    }
+
+    char func3[4];
+    char func7[33];
+    char opcode[8];
+    char rs1[6];
+    char rs2[6];
+
+    switch (inst_code)
+    {
+
+    case 1: // sb
+
+        strcpy(func3, "000");
+
+        break;
+
+    case 2: // sh
+
+        strcpy(func3, "001");
+
+        break;
+
+    case 3: // sw
+
+        strcpy(func3, "010");
+
+        break;
+
+    default:
+
+        printf("\n\nError 2: Invalid 0pcode [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+    }
+
+    char bin_str[13] = {0};
+    int size_str = 12;
+    char concatArr[33] = {0};
+    char *endptr1; // end pointer
+    long strToint;
+
+    char imm_11_5[8];
+    char imm_4_0[6];
+    char *endptr; // end pointer
+    long imm_val;
+
+    strcpy(opcode, "0100011"); // opcode
+
+    strcpy(rs2, rs2_ptr); // source 2 reg i.e dest reg
+    regist(rs2, inst_line);
+
+    if (!strcmp(rs2, "00000"))
+    {
+        printf("\n\nError 11: Invalid operation [ln:%d]\n\n", inst_line);
+        exit(0);
+    }
+
+    strcpy(rs1, rs1_ptr);
+    regist(rs1, inst_line); // source 1 reg
+
+    // converting string into decimal
+    imm_val = converter(offset_ptr, inst_line);
+
+    if (imm_val >= -2048 && imm_val <= 2047)
+    {
+
+        decToBin(imm_val, bin_str, size_str);
+
+        for (int i = 0; i < 7; i++)
+        {
+            imm_11_5[i] = bin_str[i];
+            if (i < 5)
+                imm_4_0[i] = bin_str[7 + i];
+        }
+
+        imm_11_5[7] = '\0';
+        imm_4_0[5] = '\0';
+
+        // concat all registers to complete 32 bit instruction
+        strcpy(concatArr, imm_11_5);
+        strcat(concatArr, rs2);
+        strcat(concatArr, rs1);
+        strcat(concatArr, func3);
+        strcat(concatArr, imm_4_0);
+        strcat(concatArr, opcode);
+
+        /// converting string into integer
+        // strtol converts the initial part of the string in str to a long int value according to the given base
+        // first arg str, 2nd arg return the characters if any(after integers), third is base
+
+        strToint = strtol(concatArr, &endptr1, 2);
+
+        // printf("integer is %ld\n", strToint);
+        *result = strToint; // send result back to main to write it in file
+    }
+    else
+    {
+        printf("\n\nError 5: Invalid offset [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+    }
+}
+
+void Btype(char *inst, char *rs1_ptr, char *rs2_ptr, char *label_ptr, int inst_line, int PC, long *result)
+{
+
+    int inst_code;
+
+    // integer value to B type inst
+
+    // assigning the integer value to each instruction to distinguish them. It will be utilize in switch switch
+
+    if (!strcmp(inst, "beq"))
+        inst_code = 1;
+    else if (!strcmp(inst, "bne"))
+        inst_code = 2;
+    else if (!strcmp(inst, "blt"))
+        inst_code = 3;
+    else if (!strcmp(inst, "bge"))
+        inst_code = 4;
+    else if (!strcmp(inst, "bltu"))
+        inst_code = 5;
+    else if (!strcmp(inst, "bgeu"))
+        inst_code = 6;
+    else
+    {
+        printf("\n\nError 2: Invalid 0pcode [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+    }
+
+    char func3[4];
+    char func7[33];
+    char opcode[8];
+    char rs1[6];
+    char rs2[6];
+
+    switch (inst_code)
+    {
+
+    case 1: // beq
+
+        strcpy(func3, "000");
+        break;
+
+    case 2: // bne
+
+        strcpy(func3, "001");
+        break;
+
+    case 3: // blt
+
+        strcpy(func3, "100");
+        break;
+
+    case 4: // bge
+
+        strcpy(func3, "101");
+        break;
+
+    case 5: // bltu
+
+        strcpy(func3, "110");
+        break;
+
+    case 6: // bgeu
+
+        strcpy(func3, "111");
+        break;
+
+    default:
+        printf("\n\nError 2: Invalid 0pcode [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+    }
+
+    char bin_str[13] = {0};
+    char updated_bin_str[13];
+    int size_str = 12;
+    char concatArr[33] = {0};
+    char *endptr1; // end pointer
+    long strToint;
+
+    char imm_12[2];
+    char imm_11[2];
+    char imm_10_5[7];
+    char imm_4_1[5];
+
+    strcpy(opcode, "1100011"); // opcode
+
+    strcpy(rs2, rs2_ptr); // source 2 reg i.e dest reg
+    regist(rs2, inst_line);
+
+    strcpy(rs1, rs1_ptr);
+    regist(rs1, inst_line); // source 1 reg
+
+    char *endptr; // end pointer
+    long imm_val;
+
+    // converting string into decimal
+    imm_val = converter(label_ptr, inst_line);
+
+    // Algo to catch lablel, bcz only have to subtract symbol.addr from PC ,if label comes in offset
+    if (label_ptr[0] != '-') // for +ive
+    {
+
+        if ((label_ptr[0] >= 48 && label_ptr[0] <= 57) && (label_ptr[1] != 'x' && label_ptr[1] != 'b')) // decimal str
+        {
+            imm_val = imm_val;
+        }
+
+        else if (label_ptr[0] == '0' && label_ptr[1] == 'x') // hex str
+        {
+            imm_val = imm_val;
+        }
+
+        else if (label_ptr[0] == '0' && label_ptr[1] == 'b') // bin str
+        {
+            imm_val = imm_val;
+        }
+        else // label
+        {
+            imm_val = imm_val - PC + 4;
+        }
+    }
+
+    else //-ive val
+    {
+        if ((label_ptr[1] >= 48 && label_ptr[1] <= 57) && (label_ptr[2] != 'x' && label_ptr[2] != 'b')) // decimal str
+        {
+            imm_val = imm_val;
+        }
+        else if (label_ptr[1] == '0' && label_ptr[2] == 'x') // hex str
+        {
+
+            imm_val = imm_val;
+        }
+        else if (label_ptr[1] == '0' && label_ptr[2] == 'b') // bin str
+        {
+            imm_val = imm_val;
+        }
+        else // label
+        {
+            imm_val = imm_val - PC -4;
+        }
+    }
+
+    if (imm_val >= -4096 && imm_val <= 4095) // range
+    {
+        if (imm_val % 2 == 0 || imm_val == 0)
+        {
+            decToBin(imm_val, bin_str, size_str);
+
+            // converting 12 bitexpressiob into 13
+            for (int i = 1; i < 12; i++)
+            {
+                updated_bin_str[i] = bin_str[i - 1];
+            }
+
+            if (imm_val < 0) // -ive
+                updated_bin_str[0] = '1';
+            else
+                updated_bin_str[0] = '0';
+
+            updated_bin_str[12] = '\0';
+
+
+            imm_12[0] = updated_bin_str[0];
+            imm_12[1] = '\0';
+
+            imm_11[0] = updated_bin_str[1];
+            imm_11[1] = '\0';
+
+
+            imm_10_5[0] = updated_bin_str[2];
+            imm_10_5[1] = updated_bin_str[3];
+            imm_10_5[2] = updated_bin_str[4];
+            imm_10_5[3] = updated_bin_str[5];
+            imm_10_5[4] = updated_bin_str[6];
+            imm_10_5[5] = updated_bin_str[7];
+            imm_10_5[6] = '\0';
+
+
+            imm_4_1[0] = updated_bin_str[8];
+            imm_4_1[1] = updated_bin_str[9];
+            imm_4_1[2] = updated_bin_str[10];
+            imm_4_1[3] = updated_bin_str[11];
+            imm_4_1[4] = '\0';
+
+
+            // concat all registers to complete 32 bit instruction
+            strcpy(concatArr, imm_12);
+            strcat(concatArr, imm_10_5);
+            strcat(concatArr, rs2);
+            strcat(concatArr, rs1);
+            strcat(concatArr, func3);
+            strcat(concatArr, imm_4_1);
+            strcat(concatArr, imm_11);
+            strcat(concatArr, opcode);
+
+            /// converting string into integer
+            // strtol converts the initial part of the string in str to a long int value according to the given base
+            // first arg str, 2nd arg return the characters if any(after integers), third is base
+
+            strToint = strtol(concatArr, &endptr1, 2);
+            *result = strToint; // send result back to main to write it in file
+        }
+
+        else
+        {
+            printf("\n\nError 7: offset is not even(w=4bytes, hw=2bytes) [ln:%d]\n\n", inst_line); // invalid opcode
+            exit(0);
+        }
+    }
+    else
+    {
+        printf("\n\nError 6: offset exceed (inst is too far) [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+    }
+}
+
+void Utype(char *inst, char *rd_ptr, char *offset_ptr, char *label_ptr, int inst_line, int PC, long *result)
+{
+
+    int inst_code;
+
+    // integer value to U type inst
+
+    // assigning the integer value to each instruction to distinguish them. It will be utilize in switch
+
+    if (!strcmp(inst, "lui"))
+        inst_code = 1;
+    else if (!strcmp(inst, "auipc"))
+        inst_code = 2;
+    else
+    {
+        printf("\n\nError 2: Invalid 0pcode [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+    }
+
+    char opcode[8];
+    char rd[6];
+
+    switch (inst_code)
+    {
+
+    case 1: // lui
+
+        strcpy(opcode, "0110111"); // opcode
+
+        break;
+
+    case 2: // auipc
+
+        strcpy(opcode, "0010111"); // opcode
+
+        break;
+
+    default:
+        printf("\n\nError 2: Invalid 0pcode [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+    }
+
+    char bin_str[21] = {0};
+    int size_str = 20;
+    char concatArr[33] = {0};
+    char *endptr1; // end pointer
+    long strToint;
+
+    long temp_imm_val;
+    long imm_val;
+    imm_val = converter(offset_ptr, inst_line);
+
+    if (inst_code == 2)              // auipc
+        temp_imm_val = imm_val + PC; // auipc range: PC + imm =< 1048575
+    else
+        temp_imm_val = imm_val; // aui range:  imm =< 1048575
+
+    if (temp_imm_val >= 0 && temp_imm_val <= 1048575) // 20 bit
+    {
+
+        decToBin_20bits(imm_val, bin_str, size_str);
+
+        // printf("\nbin str: %s", bin_str);
+
+        strcpy(rd, rd_ptr); //  dest reg
+        regist(rd, inst_line);
+
+        if (!strcmp(rd, "00000"))
+        {
+            printf("\n\nError 11: Invalid operation [ln:%d]\n\n", inst_line);
+            exit(0);
+        }
+
+        // concat all registers to complete 32 bit instruction
+        strcpy(concatArr, bin_str);
+        strcat(concatArr, rd);
+        strcat(concatArr, opcode);
+
+        /// converting string into integer
+        strToint = strtol(concatArr, &endptr1, 2);
+
+        // printf("integer is %ld\n", strToint);
+        *result = strToint; // send result back to main to write it in file
+    }
+    else
+    {
+        printf("\n\nError 10: imm exceed the range 0-2^10 - 1 [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+    }
+}
+
+void Jtype(char *inst, char *rd_ptr, char *label_ptr, int inst_line, int PC, long *result)
+{
+
+    int inst_code;
+
+    char imm_20[2];
+    char imm_10_1[11];
+    char imm_11[2];
+    char imm_19_12[9];
+
+    char bin_str[21] = {0};
+    char updated_bin_str[21];
+    int size_str = 20;
+    char concatArr[33] = {0};
+    char *endptr1; // end pointer
+    long strToint;
+
+    char opcode[8];
+    char rd[6];
+
+    if (!strcmp(inst, "jal"))
+    {
+
+        /// converting string into integer
+        char *endptr; // end pointer
+        long imm_val;
+
+        // converting string into decimal
+        imm_val = converter(label_ptr, inst_line);
+
+        // Algo to catch lablel, bcz only have to subtract symbol.addr from PC ,if label comes in offset
+        if (label_ptr[0] != '-') // for +ive
+        {
+            if ((label_ptr[0] >= 48 && label_ptr[0] <= 57) && (label_ptr[1] != 'x' && label_ptr[1] != 'b')) // decimal str
+                imm_val = imm_val;
+
+            else if (label_ptr[0] == '0' && label_ptr[1] == 'x') // hex str
+                imm_val = imm_val;
+
+            else if (label_ptr[0] == '0' && label_ptr[1] == 'b') // bin str
+                imm_val = imm_val;
+            else // label
+                imm_val = imm_val - PC ;
+        }
+
+        else //-ive val
+        {
+            if ((label_ptr[1] >= 48 && label_ptr[1] <= 57) && (label_ptr[2] != 'x' && label_ptr[2] != 'b')) // decimal st
+                imm_val = imm_val;
+            else if (label_ptr[1] == '0' && label_ptr[2] == 'x') // hex str
+                imm_val = imm_val;
+
+            else if (label_ptr[1] == '0' && label_ptr[2] == 'b') // bin str
+                imm_val = imm_val;
+
+            else // label
+                imm_val = imm_val - PC;
+        }
+
+        if (imm_val >= -1048575 && imm_val <= 1048575) // 20 bit
+        {
+            if (imm_val % 2 == 0 || imm_val == 0)
+            {
+                decToBin_20bits(imm_val, bin_str, size_str);
+
+                for (int i = 1; i < 20; i++)
+                {
+                    updated_bin_str[i] = bin_str[i - 1];
+                }
+
+                if (imm_val < 0) // MSB
+                    updated_bin_str[0] = '1';
+                else
+                    updated_bin_str[0] = '0';
+
+                updated_bin_str[20] = '\0';
+
+                imm_20[0] = updated_bin_str[0];
+                imm_20[1] = '\0';
+
+                imm_10_1[0] = updated_bin_str[10];
+                imm_10_1[1] = updated_bin_str[11];
+                imm_10_1[2] = updated_bin_str[12];
+                imm_10_1[3] = updated_bin_str[13];
+                imm_10_1[4] = updated_bin_str[14];
+                imm_10_1[5] = updated_bin_str[15];
+                imm_10_1[6] = updated_bin_str[16];
+                imm_10_1[7] = updated_bin_str[17];
+                imm_10_1[8] = updated_bin_str[18];
+                imm_10_1[9] = updated_bin_str[19];
+                imm_10_1[10] = '\0';
+
+                imm_11[0] = updated_bin_str[9];
+                imm_11[1] = '\0';
+
+                imm_19_12[0] = updated_bin_str[1];
+                imm_19_12[1] = updated_bin_str[2];
+                imm_19_12[2] = updated_bin_str[3];
+                imm_19_12[3] = updated_bin_str[4];
+                imm_19_12[4] = updated_bin_str[5];
+                imm_19_12[5] = updated_bin_str[6];
+                imm_19_12[6] = updated_bin_str[7];
+                imm_19_12[7] = updated_bin_str[8];
+                imm_19_12[8] = '\0';
+
+                strcpy(opcode, "1101111"); // opcode
+
+                strcpy(rd, rd_ptr); //  dest reg
+                regist(rd, inst_line);
+
+                // concat all registers to complete 32 bit instruction
+                strcat(concatArr, imm_20);
+                strcat(concatArr, imm_10_1);
+                strcat(concatArr, imm_11);
+                strcat(concatArr, imm_19_12);
+                strcat(concatArr, rd);
+                strcat(concatArr, opcode);
+
+                /// converting string into integer
+                strToint = strtol(concatArr, &endptr1, 2);
+
+                *result = strToint; // send result back to main to write it in file
+            }
+            else
+            {
+
+                printf("\n\nError 7: offset is not even(w=4bytes, hw=2bytes) [ln:%d]\n\n", inst_line); // invalid opcode
+                exit(0);
+            }
+        }
+    }
+
+    else
+    {
+        printf("\n\nError 2: Invalid 0pcode [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+    }
+}
+
+void Ptype(char *inst, char *rd_ptr, char *rs1_ptr, char *rs2_ptr, int inst_line, char *result)
+{
+    // assigning the integer value to each instruction to distinguish them. It will be utilize in switch switch
+    int inst_code;
+    // if (!strcmp(inst, "nop"))
+    //     inst_code = 1;
+    if (!strcmp(inst, "mv"))
+        inst_code = 2;
+    else if (!strcmp(inst, "not"))
+        inst_code = 3;
+    else if (!strcmp(inst, "neg"))
+        inst_code = 4;
+    else if (!strcmp(inst, "j"))
+        inst_code = 5;
+    else if (!strcmp(inst, "jal"))
+        inst_code = 6;
+    else if (!strcmp(inst, "li"))
+        inst_code = 7;
+    else if (!strcmp(inst, "call"))
+        inst_code = 8;
+    else if (!strcmp(inst, "ret"))
+        inst_code = 9;
+    else if (!strcmp(inst, "beqz"))
+        inst_code = 10;
+    else if (!strcmp(inst, "bgez"))
+        inst_code = 11;
+    else if (!strcmp(inst, "bltz"))
+        inst_code = 12;
+    else if (!strcmp(inst, "bgt"))
+        inst_code = 13;
+    else if (!strcmp(inst, "ble"))
+        inst_code = 14;
+    else
+    {
+        printf("\n\nError 2: Invalid 0pcode [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+    }
+
+    // organize and arrange the 32 bit instruction
+    char rd[15];
+    char rs1[15];
+    char temp_rs1[15];
+    char rs2[15];
+
+    switch (inst_code)
+    {
+
+        // case 1: // nop
+
+        //     strcpy(result, "\0");
+        //     strcpy(result, "addi x0, x0, 0 \n");
+        //     break;
+
+    case 2: // mv
+
+        strcpy(rd, rd_ptr);
+        strcpy(rs1, rs1_ptr);
+        strcpy(result, "\0");
+
+        strcat(result, "addi,");
+        strcat(result, rd);
+        strcat(result, ",");
+        strcat(result, rs1);
+        strcat(result, ",0,\n");
+
+        break;
+
+    case 3: // not
+
+        strcpy(rd, rd_ptr);
+        strcpy(rs1, rs1_ptr);
+        strcpy(result, "\0");
+
+        strcat(result, "xori,");
+        strcat(result, rd);
+        strcat(result, ",");
+        strcat(result, rs1);
+        strcat(result, ",-1,\n");
+
+        break;
+
+    case 4: // neg
+
+        strcpy(rd, rd_ptr);
+        strcpy(rs1, rs1_ptr);
+        strcpy(result, "\0");
+
+        strcat(result, "sub,");
+        strcat(result, rd);
+        strcat(result, ",");
+        strcat(result, " x0,");
+        strcat(result, rs1);
+        strcat(result, "\n");
+
+        break;
+
+    case 5: // j
+
+        strcpy(rd, rd_ptr); // offset
+        strcpy(result, "\0");
+
+        strcat(result, "jal,");
+        strcat(result, "x0,");
+        strcat(result, rd);
+        strcat(result, "\n");
+
+        break;
+
+    case 6: // jal
+
+        if (*rs1_ptr == '\0') // if 2nd argument[1] is null than Jal is pseudo
+        {
+
+            strcpy(rd, rd_ptr); // offset
+            strcpy(result, "\0");
+
+            strcat(result, "jal,");
+            strcat(result, "x1,");
+            strcat(result, rd);
+            strcat(result, "\n");
+        }
+
+        break;
+
+    case 7: // li
+
+        strcpy(rd, rd_ptr);
+        strcpy(rs1, rs1_ptr);
+        strcpy(result, "\0");
+
+        char *endptr; // end pointer
+        char *endptr1;
+        char *endptr2;
+
+        long imm_val;
+        long imm_val1;
+        long imm_val2;
+        char bin_str[33] = {0};
+        char imm_upper_20_bits[21];
+        char imm_lower_12_bits[13];
+        char offset_upper[15];
+        char offset_lower[15];
+
+
+        if (rs1[0] == '0' && rs1[1] == 'x')
+        {
+            int i=0;
+            for (i; i< strlen(rs1) ; i++)
+                temp_rs1[i] = rs1 [i+2] ; 
+
+                temp_rs1[i+1] = '\0';
+
+            
+            imm_val = strtol(rs1, &endptr, 16);
+            decToBin_32bits(imm_val, bin_str);
+
+            for (int i = 0; i < 20; i++)
+                imm_upper_20_bits[i] = bin_str[i];
+
+            imm_upper_20_bits[20] = '\0';
+
+            imm_val1 = strtol(imm_upper_20_bits, &endptr1, 2);
+            sprintf(offset_upper, "%ld", imm_val1);
+
+            for (int i = 0; i < 12; i++)
+                imm_lower_12_bits[i] = bin_str[20 + i];
+
+            imm_lower_12_bits[12] = '\0';
+
+            imm_val2 = strtol(imm_lower_12_bits, &endptr2, 2);
+            sprintf(offset_lower, "%ld", imm_val2);
+
+            printf("\nupp: %s", offset_upper);
+            printf("\ndown: %s", offset_lower);
+
+            strcat(result, "lui,");
+            strcat(result, rd);
+            strcat(result, ",");
+            strcat(result, offset_upper);
+            strcat(result, ",");
+
+            strcat(result, "\n");
+
+            strcat(result, "addi,");
+            strcat(result, rd);
+            strcat(result, ",");
+            strcat(result, rd);
+            strcat(result, ",");
+            strcat(result, offset_lower);
+            strcat(result, "\n");
+
+
+            
+        }
+
+
+
+            else
+            {
+
+            strcat(result, "lui,");
+            strcat(result, rd);
+            strcat(result, ",");
+            strcat(result, offset_upper);
+            strcat(result, ",");
+            strcat(result, "\n");
+
+            strcat(result, "addi,");
+            strcat(result, rd);
+            strcat(result, ",");
+            strcat(result, rd);
+            strcat(result, ",");
+            strcat(result, offset_lower);
+            strcat(result, "\n");
+
+            }
+
+   
+
+        break;
+
+    case 8: // call
+
+        strcpy(rd, rd_ptr);
+        strcpy(result, "\0");
+
+        strcat(result, "auipc,");
+        strcat(result, "x1,");
+        strcat(result, rd);
+        strcat(result, ",");
+        strcat(result, "\n");
+
+        strcat(result, "jalr,");
+        strcat(result, "x1,x1,");
+        strcat(result, rd);
+        strcat(result, ",");
+        strcat(result, "\n");
+
+        break;
+
+    case 9: // ret
+
+        strcpy(rd, rd_ptr);
+        strcpy(rs1, rs1_ptr);
+        strcpy(result, "\0");
+
+        strcat(result, "jalr,x0,x1,0");
+        strcat(result, "\n");
+
+        break;
+
+    case 10: // beqz
+
+        strcpy(rd, rd_ptr);
+        strcpy(rs1, rs1_ptr);
+        strcpy(result, "\0");
+
+        strcat(result, "beq,");
+        strcat(result, rd);
+        strcat(result, ",x0,");
+        strcat(result, rs1);
+        strcat(result, ",");
+        strcat(result, "\n");
+
+        break;
+    case 11: // bgez
+
+        strcpy(rd, rd_ptr);
+        strcpy(rs1, rs1_ptr);
+        strcpy(result, "\0");
+
+        strcat(result, "bge,");
+        strcat(result, rd);
+        strcat(result, ",x0,");
+        strcat(result, rs1);
+        strcat(result, ",");
+        strcat(result, "\n");
+
+        break;
+
+    case 12: // bltz
+
+        strcpy(rd, rd_ptr);
+        strcpy(rs1, rs1_ptr);
+        strcpy(result, "\0");
+
+        strcat(result, "blt,");
+        strcat(result, rd);
+        strcat(result, ",x0,");
+        strcat(result, rs1);
+        strcat(result, ",");
+        strcat(result, "\n");
+
+        break;
+
+    case 13: // bgt
+
+        strcpy(rd, rd_ptr);
+        strcpy(rs1, rs1_ptr);
+        strcpy(rs2, rs2_ptr);
+        strcpy(result, "\0");
+
+        strcat(result, "blt,");
+        strcat(result, rd);
+        strcat(result, ",");
+        strcat(result, rs1);
+        strcat(result, ",");
+        strcat(result, rs2);
+        strcat(result, ",");
+        strcat(result, "\n");
+
+        break;
+
+    case 14: // ble
+
+        strcpy(rd, rd_ptr);
+        strcpy(rs1, rs1_ptr);
+        strcpy(rs2, rs2_ptr);
+        strcpy(result, "\0");
+
+        strcat(result, "bge,");
+        strcat(result, rs1);
+        strcat(result, ",");
+        strcat(result, rd);
+        strcat(result, ",");
+        strcat(result, rs2);
+        strcat(result, ",");
+        strcat(result, "\n");
+
+        break;
+
+    default:
+        printf("\n\nError 2: Invalid 0pcode [ln:%d]\n\n", inst_line); // invalid opcode
+        exit(0);
+    }
+}
+
+void main(int argc, char *argv[])
+
+{
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // FIRST PASS: file convert the psuedo instruction into base instructions
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // FILE *fpR_1P = fopen(argv[1], "r"); // file pointer for reading assembly file (1st pass)
+    FILE *fpR_1P = fopen("assembly_code.txt", "r"); // file pointer for reading assembly file (1st pass)
+    FILE *fpW_1P = fopen("psuedo.txt", "w");        // file pointer for write into .bin file (1st pass)
+
+    if (fpR_1P == NULL)
+    {
+        printf("No assembly code in file");
+        printf("\n\n\n");
+        return;
+    }
+    int inst_line_1P = 0;
+
+    while (!feof(fpR_1P)) // end of file
+
+    {
+        char str[255];
+        char str_copy[255];
+
+        //   Reading assembly instruction
+
+        fgets(str, 255, fpR_1P);
+        strcpy(str_copy, str); // copy of inst
+
+        for (int i = 0; i < strlen(str); i++) // convert into lower str
+            str[i] = tolower(str[i]);
+
+        int i = 0;
+        int label_addr;
+        char *ptrArray[10];
+
+        for (int i = 0; i < 10; i++) // initilization of pointer array with '\0'
+            ptrArray[i] = "\0";
+
+        char *tok = strtok(str, ", ;\n()"); // here no need to add '#' bcz we are saving it in ptrArr[0].
+                                            // Which will help to ignore comment at the start of line
+
+        if (tok != NULL) // check for the space,if line is empty than bypass the present loop
+
+        {
+            inst_line_1P = inst_line_1P + 1; // first pass instruction line number
+
+            while (tok != NULL)
+            {
+                ptrArray[i] = tok;
+                i++;
+                tok = strtok(NULL, ", ;\n#()"); // '#' deliminator save us from a corner case i.e if # immidiatly comes after last operand(without space)
+            }
+
+            char hash_check = ptrArray[0][0];
+            int size = strlen(ptrArray[0]);
+
+            if (hash_check != '#' && ptrArray[0][size - 1] != ':') // check for the comment,if line starts with # than bypass the present loop
+                                                                   // if # comes after the assembly instruction.It will be stored in ptrArray but not effect our program.
+            {
+                char inst;
+
+                if ((!strcmp(ptrArray[0], "mv")) || (!strcmp(ptrArray[0], "not")) || (!strcmp(ptrArray[0], "neg")) || (!strcmp(ptrArray[0], "j")) || (!strcmp(ptrArray[0], "jal")) || (!strcmp(ptrArray[0], "li")) || (!strcmp(ptrArray[0], "call")) || (!strcmp(ptrArray[0], "ret")) || (!strcmp(ptrArray[0], "beqz")) || (!strcmp(ptrArray[0], "bgez")) ||
+                    (!strcmp(ptrArray[0], "bltz")) || (!strcmp(ptrArray[0], "bgt")) || (!strcmp(ptrArray[0], "ble")))
+                {
+
+                    Ptype(ptrArray[0], ptrArray[1], ptrArray[2], ptrArray[3], inst_line_1P, str_copy);
+                }
+            }
+        }
+
+        fprintf(fpW_1P, "%s", str_copy); // write into file.
+    }
+
+    fclose(fpR_1P);
+    fclose(fpW_1P);
+    printf("\n");
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // SECONED PASS: Find the label with their address and write it in symbol table.
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    FILE *fpR_2P = fopen("psuedo.txt", "r"); // file pointer for reading assembly file (2nd pass)
+    FILE *fpW_2P = fopen("label.bin", "w");  // file pointer for write into .bin file (2nd pass)
+
+    if (fpR_2P == NULL)
+    {
+        printf("No assembly code in file");
+        printf("\n\n\n");
+        return;
+    }
+
+    int j = 0;
+    int inst_line_2P = 0;
+    int total_labels;
+
+    printf("\n-----------symbol Table------------");
+    printf("\n\nlabels \t\t addrs\n");
+
+    while (!feof(fpR_2P)) // end of file
+
+    {
+        char str[255];
+        char str_copy[255];
+        int PC;
+
+        //  Reading assembly instruction
+
+        fgets(str, 255, fpR_2P);
+        for (int i = 0; i < strlen(str); i++)
+            str[i] = tolower(str[i]);
+        strcpy(str_copy, str);
+
+        // tokenization
+
+        int i = 0;
+        int label_addr;
+        char *ptrArray[10];
+        for (int i = 0; i < 10; i++) // initilization of pointer array with '\0'
+            ptrArray[i] = "\0";
+
+        char *tok = strtok(str, ", ;\n()"); // here no need to add '#' bcz we are saving it in ptrArr[0].
+                                            // Which will help to ignore comment at the start of line
+
+        if (tok != NULL) // check for the space,if line is empty than bypass the present loop
+
+        {
+            inst_line_2P = inst_line_2P + 1;
+
+            while (tok != NULL) // avoiding empty lines
+            {
+                ptrArray[i] = tok;
+                i++;
+                tok = strtok(NULL, ", ;\n#()"); // '#' deliminator save us from a corner case i.e if # immidiatly comes after last operand(without space)
+            }
+
+            if (ptrArray[0][0] == '#') // avoiding comment line
+                PC = PC;
+            else
+            {
+                if (inst_line_2P == 1) // starting PC = 0
+                    PC = 0;
+
+                else
+                    PC = PC + 4; // incr PC
+            }
+
+            char temp_ptrArray[50];
+
+            strcpy(temp_ptrArray, ptrArray[1]);
+
+            int size = strlen(ptrArray[0]);
+
+            if (ptrArray[0][size - 1] == ':')
+
+            {
+
+                if (ptrArray[1][0] == '\0') // if line is empty after label
+                {
+                    // PC = PC -4;
+                    label_addr = PC;
+                    strcpy(str_copy, "\n");
+                }
+                else
+                {
+
+                    label_addr = PC;
+                    char concatArr[50];
+
+                    strcat(concatArr, ptrArray[1]);
+                    strcat(concatArr, " ,");
+                    strcat(concatArr, ptrArray[2]);
+                    strcat(concatArr, " ,");
+                    strcat(concatArr, ptrArray[3]);
+                    strcat(concatArr, " ,");
+                    strcat(concatArr, ptrArray[4]);
+                    strcat(concatArr, "\n");
+                    // strcpy(str_copy, concatArr);
+                    strcpy(str_copy, concatArr);
+                }
+
+                symbolTable[j].address = label_addr;
+                strncpy(symbolTable[j].label, ptrArray[0], strlen(ptrArray[0]) - 1); // to avoid : in label
+                                                                                     // printf("j: %d ",j);
+
+                printf("\n%s \t\t Ox%.8x", symbolTable[j].label, symbolTable[j].address);
+
+                total_labels = j;
+                j = j + 1;
+            }
+        }
+
+        for (int i = 0; i < 10; i++)
+            ptrArray[i] = "\0";
+
+        fprintf(fpW_2P, "%d %s",PC, str_copy); // write into file.
+    }
+
+    // if label name is  repeating than terminate the program
+    for (int i = 0; i <= total_labels; i++)
+    {
+        for (int k = 0; k <= total_labels; k++)
+        {
+
+            if (i != k)
+            {
+                if (!strcmp(symbolTable[i].label, symbolTable[k].label))
+                {
+
+                    printf("\n\nError 1: labels repeating\n\n"); // invalid opcode
+                    exit(0);
+                }
+            }
+        }
+    }
+
+    fclose(fpR_2P);
+    fclose(fpW_2P);
+    printf("\n\n\n");
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // THIRD PASS: Covert the base instructions into equivalent machine code.
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    int inst_line = 0;
+    int PC = 0;
+    FILE *fpR = fopen("label.bin", "r"); // file pointer for readin assembly file
+    // FILE *fpW = fopen(argv[2], "w"); // file pointer for write into .bin file
+    FILE *fpW = fopen("machine_code.txt", "w"); // file pointer for write into .bin file
+
+    if (fpR == NULL)
+    {
+        printf("No assembly code in file");
+        printf("\n\n\n");
+        return;
+    }
+
+    while (!feof(fpR)) // end of file
+
+    {
+
+        // Reading assembly instruction
+
+        char str[100]; // file line length
+
+        fgets(str, 100, fpR);
+
+        inst_line = inst_line + 1; // line # of assembly.txt
+
+        // tokenization
+
+        int i = 0;
+        char *ptrArray[10];
+
+        char *tok = strtok(str, ", ;\n()"); // here no need to add '#' bcz we are saving it in ptrArr[0].Which will help us to ignore comment at the start of line
+        if (tok != NULL)                    // check for the space,if line is empty than bypass the present loop
+
+        {
+
+            while (tok != NULL)
+            {
+                ptrArray[i] = tok;
+                i++;
+                tok = strtok(NULL, ", ;\n#()"); // '#' deliminator save us from a corner case i.e if # immidiatly comes after last operand(without space)
+            }
+
+            if (ptrArray[0][0] == '#') // avoiding comment line
+                PC = PC;
+            else
+            {
+                if (inst_line == 1)
+
+                    PC = 0; // PC starting address
+
+                else
+                    PC = PC + 4;
+            }
+
+            char hash_check = ptrArray[0][0];
+
+            if (hash_check != '#' && hash_check != '.') // check for the comment,if line starts with # than bypass the present loop
+                                                        // Also check for the "." which represent the segments
+                                                        // if # comes after the assembly instruction.It will be stored in ptrArray but not effect our program.
+            {
+
+                //  checking instruction type
+
+                char inst = instruction(ptrArray[0], inst_line);
+
+                // checking instruction type
+
+                long hex_riscv_inst;
+                switch (inst)
+
+                {
+                case 'R':
+
+                    Rtype(ptrArray[0], ptrArray[1], ptrArray[2], ptrArray[3], inst_line, &hex_riscv_inst);
+                    break;
+
+                case 'I':
+
+                    Itype(ptrArray[0], ptrArray[1], ptrArray[2], ptrArray[3], inst_line, PC, &hex_riscv_inst);
+                    break;
+
+                case 'S':
+
+                    Stype(ptrArray[0], ptrArray[1], ptrArray[2], ptrArray[3], inst_line, &hex_riscv_inst);
+                    break;
+
+                case 'B':
+
+                    Btype(ptrArray[0], ptrArray[1], ptrArray[2], ptrArray[3], inst_line, PC, &hex_riscv_inst);
+                    break;
+
+                case 'U':
+
+                    Utype(ptrArray[0], ptrArray[1], ptrArray[2], ptrArray[3], inst_line, PC, &hex_riscv_inst);
+                    break;
+
+                case 'J':
+
+                    Jtype(ptrArray[0], ptrArray[1], ptrArray[2], inst_line, PC, &hex_riscv_inst);
+                    break;
+
+                default:
+                    printf("\n\nError 2: Invalid 0pcode [ln:%d]\n\n", inst_line); // invalid opcode
+                    exit(0);
+                }
+
+                fprintf(fpW, "0x%.8lx\n", hex_riscv_inst); // integer to hex than write into file.
+            }
+        }
+    }
+
+    fclose(fpR);
+    fclose(fpW);
+    printf("\n\n\n");
+}
